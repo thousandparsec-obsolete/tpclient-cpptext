@@ -151,6 +151,7 @@ int main(int argc, char** argv){
       GetObjectByID* go = fc->createGetObjectByIDFrame();
       go->addObjectID(id);
       Object* ob = fc->getObjects(go).begin()->second;
+      delete go;
       if(ob == NULL){
 	std::cout << "Did not get object" << std::endl;
       }else{
@@ -168,6 +169,7 @@ int main(int argc, char** argv){
       GetBoard* gb = fc->createGetBoardFrame();
       gb->addBoardId(id);
       Board* bb = fc->getBoards(gb).begin()->second;
+      delete gb;
       if(bb == NULL){
 	std::cout << "Did not get Board" << std::endl;
       }else{
@@ -272,6 +274,10 @@ int main(int argc, char** argv){
   
   fc->disconnect();
   delete fc; // also takes care of sock for us
+
+  //delete the local printers and helper objects
+  delete objectprinter;
+  delete orderParamPrinter;
 
   std::cout << std::endl;
 
