@@ -11,6 +11,8 @@
 #define VERSION "0.0.0"
 #endif
 
+#include "printlogger.h"
+
 using namespace TPProto;
 
 int main(int argc, char** argv){
@@ -24,6 +26,7 @@ int main(int argc, char** argv){
 
   //async frame listener
   //logger
+  fc->setLogger(new PrintLogger());
 
   bool happy = true;
   // main loop
@@ -51,7 +54,14 @@ int main(int argc, char** argv){
       if(fc->getStatus() != 0){
 	fc->disconnect();
       }
+    }else if(command == "login"){
+      std::string user, pass;
+      std::cin >> std::ws >> user >> pass;
+      std::cout << "User: " << user << " pass: " << pass << " foo" << std::endl;
+      fc->login(user, pass);
     }
+
+    
     
     if(fc->getStatus() > 2){
       fc->pollForAsyncFrames();
