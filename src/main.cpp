@@ -19,6 +19,7 @@
 
 #include "printlogger.h"
 #include "printaflistener.h"
+#include "printobject.h"
 
 using namespace TPProto;
 
@@ -35,6 +36,8 @@ int main(int argc, char** argv){
   fc->setAsyncFrameListener(new PrintAFListener());
   //logger
   fc->setLogger(new PrintLogger());
+
+  PrintObject* objectprinter = new PrintObject();
 
   bool happy = true;
   Object* currObj = NULL;
@@ -167,7 +170,7 @@ int main(int argc, char** argv){
     }else if(brdobj){
       if(currObj != NULL){
 	if(command == "show"){
-	  
+	  currObj->visit(objectprinter);
 	}
       }
     }else{
@@ -175,6 +178,7 @@ int main(int argc, char** argv){
 	if(command == "show"){
 	  std::cout << std::endl;
 	  std::cout << "Name: " << currBoard->getName() << std::endl;
+	  std::cout << "Id: " << currBoard->getId() << std::endl;
 	  std::cout << "Description: " << currBoard->getDescription() << std::endl;
 	  std::cout << "Number of messages: " << currBoard->numMessages() << std::endl << std::endl;
 	}else if(command == "message"){
