@@ -10,6 +10,9 @@
 #include <tpproto/getboard.h>
 #include <tpproto/getmessage.h>
 #include <tpproto/message.h>
+#include <tpproto/getorder.h>
+#include <tpproto/order.h>
+#include <tpproto/orderparameter.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -20,6 +23,7 @@
 #include "printlogger.h"
 #include "printaflistener.h"
 #include "printobject.h"
+#include "printorderparam.h"
 
 using namespace TPProto;
 
@@ -38,6 +42,7 @@ int main(int argc, char** argv){
   fc->setLogger(new PrintLogger());
 
   PrintObject* objectprinter = new PrintObject();
+  PrintOrderParam* orderParamPrinter = new PrintOrderParam();
 
   bool happy = true;
   Object* currObj = NULL;
@@ -73,6 +78,8 @@ int main(int argc, char** argv){
       std::cout << "\tobject - get an object, take an id arg" << std::endl;
       std::cout << "\tboard - get a board, take an id arg" << std::endl;
       std::cout << std::endl << "When working on an Object (prompt starts with \"Object\"):"<< std::endl;
+      std::cout << "\tshow - show the object" << std::endl;
+      std::cout << "\torder - gets and print an order (takes one arg)" << std::endl;
 
       std::cout << std::endl << "When working on a Board (prompt starts with \"Board\"):"<< std::endl;
       std::cout << "\tshow - show the properities of the board" << std::endl;
@@ -171,6 +178,29 @@ int main(int argc, char** argv){
       if(currObj != NULL){
 	if(command == "show"){
 	  currObj->visit(objectprinter);
+	}else if(command == "order"){
+	  int id;
+	  std::cin >> id;
+	  GetOrder* go = fc->createGetOrderFrame();
+	  go->setObjectId(currObj->getId());
+	  go->addOrderId(id);
+	  std::map<unsigned int, Order*> ords = fc->getOrders(go);
+	  delete go;
+	  for(std::map<unsigned int, Order*>::iterator itcurr = ords.begin(); itcurr != ords.end(); ++itcurr){
+	    Order* order = itcurr->second;
+	    if(order != NULL){
+	      std::cout << std::endl;
+	      std::cout << "Order Type: " << order->getOrderType() << std::endl;
+	      std::cout << "Slot: " << order->getSlot() << std::endl;
+	      std::cout << "Turns: " << order->getNumTurns() << std::endl;
+	      std::cout << "Num Params: " << order->getNumParameters() << std::endl;
+	      for(unsigned int i = 0; i < order->getNumParameters(); i++){
+		order->getParameter(i)->visit(orderParamPrinter);
+	      }
+	      delete order;
+	      std::cout << std::endl;
+	    }
+	  }
 	}
       }
     }else{
@@ -194,8 +224,8 @@ int main(int argc, char** argv){
 	    if(msg != NULL){
 	      std::cout << std::endl << "Message Subject: " << msg->getSubject() << std::endl;
 	      std::cout << "Body: " << msg->getBody() << std::endl << std::endl;
+	      delete msg;
 	    }
-	    delete msg;
 	  }
 	}
       }
