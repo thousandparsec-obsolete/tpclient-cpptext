@@ -34,7 +34,7 @@ void PrintAFListener::recvTimeRemaining(TimeRemaining* trf){
   if(seen)
     std::cout << "and ";
 
-  std::cout << tvrem << " seconds." << std::endl;
+  std::cout << tvrem << " seconds." << std::endl << std::endl;
 
 }
 
