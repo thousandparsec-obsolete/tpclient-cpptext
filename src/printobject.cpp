@@ -81,6 +81,7 @@ void PrintObject::visit(Planet* ob){
 void PrintObject::visit(Fleet* ob){
   visit((Object*)ob);  
 
+  std::cout << "Num orders: " << ob->getNumberOrders() << std::endl;
   std::cout << "Owned By: " << ob->getOwner() << std::endl;
   std::cout << "Damage: " << ob->getDamage() << std::endl;
   std::cout << "Ships: Scouts(" << ob->numShips(0) << "), Frigates(" << ob->numShips(1) << "), Battleships(" <<
