@@ -13,6 +13,8 @@
 #include <tpproto/getorder.h>
 #include <tpproto/order.h>
 #include <tpproto/orderparameter.h>
+#include <tpproto/removeorder.h>
+#include <tpproto/removemessage.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -80,10 +82,12 @@ int main(int argc, char** argv){
       std::cout << std::endl << "When working on an Object (prompt starts with \"Object\"):"<< std::endl;
       std::cout << "\tshow - show the object" << std::endl;
       std::cout << "\torder - gets and print an order (takes one arg)" << std::endl;
+      std::cout << "\tdel_order - removes an order from the object (takes one arg)" << std::endl;
 
       std::cout << std::endl << "When working on a Board (prompt starts with \"Board\"):"<< std::endl;
       std::cout << "\tshow - show the properities of the board" << std::endl;
       std::cout << "\tmessage - gets and prints the message (takes one arg)" << std::endl;
+      std::cout << "\tdel_message - removes a message from the board (takes one arg)" << std::endl;
 
     }else if(command == "quit" || command == "exit"){
       happy = false;
@@ -201,6 +205,16 @@ int main(int argc, char** argv){
 	      std::cout << std::endl;
 	    }
 	  }
+	}else if(command == "del_order"){
+	  int id;
+	  std::cin >> id;
+	  RemoveOrder* rg = fc->createRemoveOrderFrame();
+	  rg->setObjectId(currObj->getId());
+	  rg->removeOrderId(id);
+	  if(fc->removeOrders(rg) != 1){
+	    std::cout << "Did not remove order" << std::endl;
+	  }
+	  delete rg;
 	}
       }
     }else{
@@ -227,6 +241,16 @@ int main(int argc, char** argv){
 	      delete msg;
 	    }
 	  }
+	}else if(command == "del_message"){
+	  int id;
+	  std::cin >> id;
+	  RemoveMessage* rm = fc->createRemoveMessageFrame();
+	  rm->setBoard(currBoard->getId());
+	  rm->removeMessageId(id);
+	  if(fc->removeMessages(rm) != 1){
+	    std::cout << "Did not remove message" << std::endl;
+	  }
+	  delete rm;
 	}
       }
     }
