@@ -12,6 +12,7 @@
 #endif
 
 #include "printlogger.h"
+#include "printaflistener.h"
 
 using namespace TPProto;
 
@@ -25,6 +26,7 @@ int main(int argc, char** argv){
   fc->setSocket(sock);
 
   //async frame listener
+  fc->setAsyncFrameListener(new PrintAFListener());
   //logger
   fc->setLogger(new PrintLogger());
 
@@ -43,6 +45,8 @@ int main(int argc, char** argv){
       std::cout << "\tquit, exit - exits tpclient-cpptext" << std::endl;
       std::cout << "\tconnect - connect to server (takes one arg)" << std::endl;
       std::cout << "\tdisconnect - disconnect from server" << std::endl;
+      std::cout << "\tlogin - login to server (takes two args)" << std::endl;
+      std::cout << "\ttime - get the time before the next End Of Turn" << std::endl;
     }else if(command == "quit" || command == "exit"){
       happy = false;
     }else if(command == "connect"){
@@ -59,6 +63,30 @@ int main(int argc, char** argv){
       std::cin >> std::ws >> user >> pass;
       std::cout << "User: " << user << " pass: " << pass << " foo" << std::endl;
       fc->login(user, pass);
+    }else if(command == "time"){
+      std::cout << "Time Remaining: ";
+      int tvrem = fc->getTimeRemaining();
+      bool seen = false;
+      if(tvrem > 86400){
+	std::cout << (tvrem / 86400) << " days, ";
+	seen = true;
+	tvrem = tvrem % 86400;
+      }
+      if(seen || tvrem > 3600){
+	std::cout << (tvrem / 3600) << " hours, ";
+	seen = true;
+	tvrem = tvrem % 3600;
+      }
+      if(seen || tvrem > 60){
+	std::cout << (tvrem / 60) << " minutes, ";
+	seen = true;
+	tvrem = tvrem % 60;
+      }
+      if(seen)
+	std::cout << "and ";
+      
+      std::cout << tvrem << " seconds." << std::endl;
+      
     }
 
     
@@ -72,6 +100,8 @@ int main(int argc, char** argv){
   
   fc->disconnect();
   delete fc; // also takes care of sock for us
+
+  std::cout << std::endl;
 
   return 0;
 
