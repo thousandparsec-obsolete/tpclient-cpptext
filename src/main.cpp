@@ -8,6 +8,8 @@
 #include <tpproto/board.h>
 #include <tpproto/getobjectbyid.h>
 #include <tpproto/getboard.h>
+#include <tpproto/getmessage.h>
+#include <tpproto/message.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -70,6 +72,8 @@ int main(int argc, char** argv){
       std::cout << std::endl << "When working on an Object (prompt starts with \"Object\"):"<< std::endl;
 
       std::cout << std::endl << "When working on a Board (prompt starts with \"Board\"):"<< std::endl;
+      std::cout << "\tshow - show the properities of the board" << std::endl;
+      std::cout << "\tmessage - gets and prints the message (takes one arg)" << std::endl;
 
     }else if(command == "quit" || command == "exit"){
       happy = false;
@@ -159,6 +163,37 @@ int main(int argc, char** argv){
 	currBoard = bb;
 	brdobj = false;
 
+      }
+    }else if(brdobj){
+      if(currObj != NULL){
+	if(command == "show"){
+	  
+	}
+      }
+    }else{
+      if(currBoard != NULL){
+	if(command == "show"){
+	  std::cout << std::endl;
+	  std::cout << "Name: " << currBoard->getName() << std::endl;
+	  std::cout << "Description: " << currBoard->getDescription() << std::endl;
+	  std::cout << "Number of messages: " << currBoard->numMessages() << std::endl << std::endl;
+	}else if(command == "message"){
+	  int id;
+	  std::cin >> id;
+	  GetMessage* gm = fc->createGetMessageFrame();
+	  gm->setBoard(currBoard->getId());
+	  gm->addMessageId(id);
+	  std::map<unsigned int, Message*> messgs = fc->getMessages(gm);
+	  delete gm;
+	  for(std::map<unsigned int, Message*>::iterator itcurr = messgs.begin(); itcurr != messgs.end(); ++itcurr){
+	    Message* msg = itcurr->second;
+	    if(msg != NULL){
+	      std::cout << std::endl << "Message Subject: " << msg->getSubject() << std::endl;
+	      std::cout << "Body: " << msg->getBody() << std::endl << std::endl;
+	    }
+	    delete msg;
+	  }
+	}
       }
     }
 
