@@ -1,3 +1,22 @@
+/*  Main method for tpclient-cpptext
+ *
+ *  Copyright (C) 2004-2005  Lee Begg and the Thousand Parsec Project
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
 
 #include <iostream>
 #include <string>
@@ -33,6 +52,145 @@
 
 using namespace TPProto;
 
+static bool brdobj = true;
+
+char* command_generator(const char* text, int state)
+{
+  static int index, len;
+  char *cname = NULL;
+
+  /* If this is a new word to complete, initialize now.  This
+     includes saving the length of TEXT for efficiency, and
+     initializing the index variable to 0. */
+  if (!state)
+    {
+      index = 0;
+      len = strlen (text);
+    }
+
+  switch(index){
+  case 0:
+    if(strncasecmp(text, "quit", len) == 0){
+      cname = (char*)malloc(5);
+      strncpy(cname, "quit", 5);
+      index = 1;
+      break;
+    }
+  case 1:
+    if(strncasecmp(text, "exit", len) == 0){
+      cname = (char*)malloc(5);
+      strncpy(cname, "exit", 5);
+      index = 2;
+      break;
+    }
+  case 2:
+    if(strncasecmp(text, "help", len) == 0){
+      cname = (char*)malloc(5);
+      strncpy(cname, "help", 5);
+      index = 3;
+      break;
+    }
+  case 3:
+    if(strncasecmp(text, "connect", len) == 0){
+      cname = (char*)malloc(8);
+      strncpy(cname, "connect", 8);
+      index = 4;
+      break;
+    }
+  case 4:
+    if(strncasecmp(text, "disconnect", len) == 0){
+      cname = (char*)malloc(11);
+      strncpy(cname, "disconnect", 11);
+      index = 5;
+      break;
+    }
+  case 5:
+    if(strncasecmp(text, "login", len) == 0){
+      cname = (char*)malloc(6);
+      strncpy(cname, "login", 6);
+      index = 6;
+      break;
+    }
+  case 6:
+    if(strncasecmp(text, "time", len) == 0){
+      cname = (char*)malloc(5);
+      strncpy(cname, "time", 5);
+      index = 7;
+      break;
+    }
+  case 7:
+    if(strncasecmp(text, "object", len) == 0){
+      cname = (char*)malloc(7);
+      strncpy(cname, "object", 7);
+      index = 8;
+      break;
+    }
+  case 8:
+    if(strncasecmp(text, "board", len) == 0){
+      cname = (char*)malloc(6);
+      strncpy(cname, "board", 6);
+      index = 9;
+      break;
+    }
+  case 9:
+    if(strncasecmp(text, "show", len) == 0){
+      cname = (char*)malloc(5);
+      strncpy(cname, "show", 5);
+      index = 10;
+      break;
+    }
+  case 10:
+    if(brdobj && strncasecmp(text, "order", len) == 0){
+      cname = (char*)malloc(6);
+      strncpy(cname, "order", 6);
+      index = 11;
+      break;
+    }
+  case 11:
+    if(brdobj && strncasecmp(text, "del_order", len) == 0){
+      cname = (char*)malloc(10);
+      strncpy(cname, "del_order", 10);
+      index = 12;
+      break;
+    }
+  case 12:
+    if(!brdobj && strncasecmp(text, "message", len) == 0){
+      cname = (char*)malloc(8);
+      strncpy(cname, "message", 8);
+      index = 13;
+      break;
+    }
+  case 13:
+    if(!brdobj && strncasecmp(text, "del_message", len) == 0){
+      cname = (char*)malloc(12);
+      strncpy(cname, "del_message", 12);
+      index = 14;
+      break;
+    }
+
+
+  default:
+    index = 99;
+    break;
+  }
+
+  return cname;
+}
+
+char** command_completion (const char* text, int start, int end)
+{
+  char **matches;
+
+  matches = (char **)NULL;
+
+  if (start == 0)
+    matches = rl_completion_matches (text, command_generator);
+  
+  rl_attempted_completion_over = 1;
+
+  return (matches);
+}
+
 int main(int argc, char** argv){
 
   std::cout << "tpclient-cpptext " << VERSION << std::endl;
@@ -52,7 +210,10 @@ int main(int argc, char** argv){
 
   Object* currObj = NULL;
   Board* currBoard = NULL;
-  bool brdobj = true;
+
+
+  //setup readline completion
+  rl_attempted_completion_function = command_completion;
 
   // main loop
   while(true){
