@@ -1,6 +1,10 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
+
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #include <tpproto/framecodec.h>
 #include <tpproto/tcpsocket.h>
@@ -46,27 +50,36 @@ int main(int argc, char** argv){
   PrintObject* objectprinter = new PrintObject();
   PrintOrderParam* orderParamPrinter = new PrintOrderParam();
 
-  bool happy = true;
   Object* currObj = NULL;
   Board* currBoard = NULL;
   bool brdobj = true;
 
   // main loop
-  while(happy && !std::cin.eof()){
+  while(true){
+    std::ostringstream prompt;
     if(brdobj){
       if(currObj != NULL){
-	std::cout << "Object: " << currObj->getName();
+	prompt << "Object: " << currObj->getName();
       }
     }else{
       if(currBoard != NULL){
-	std::cout << "Board: " << currBoard->getName();
+	prompt << "Board: " << currBoard->getName();
       }
     }
 
-    std::cout << "> " << std::flush;
+    prompt << "> ";
+
+    char* line = readline(prompt.str().c_str());
+    if(line == NULL)
+      break;
+
+    add_history(line);
+
+    std::istringstream streamline;
+    streamline.str(std::string(line));
 
     std::string command;
-    std::cin >> std::ws >> command;
+    streamline >> std::ws >> command;
 
     if(command == "help"){
       std::cout << "Help" << std::endl;
@@ -90,10 +103,10 @@ int main(int argc, char** argv){
       std::cout << "\tdel_message - removes a message from the board (takes one arg)" << std::endl;
 
     }else if(command == "quit" || command == "exit"){
-      happy = false;
+      break;
     }else if(command == "connect"){
       std::string host;
-      std::cin >> std::ws >> host;
+      streamline >> std::ws >> host;
       sock->setServerAddr(host.c_str());
       fc->connect();
       if(currObj != NULL){
@@ -118,7 +131,7 @@ int main(int argc, char** argv){
       }
     }else if(command == "login"){
       std::string user, pass;
-      std::cin >> std::ws >> user >> pass;
+      streamline >> std::ws >> user >> pass;
       std::cout << "User: " << user << " pass: " << pass << " foo" << std::endl;
       fc->login(user, pass);
     }else if(command == "time"){
@@ -147,7 +160,7 @@ int main(int argc, char** argv){
       
     }else if(command == "object"){
       int id;
-      std::cin >> id;
+      streamline >> id;
       GetObjectByID* go = fc->createGetObjectByIDFrame();
       go->addObjectID(id);
       Object* ob = fc->getObjects(go).begin()->second;
@@ -165,7 +178,7 @@ int main(int argc, char** argv){
 
     }else if(command == "board"){
       int id;
-      std::cin >> id;
+      streamline >> id;
       GetBoard* gb = fc->createGetBoardFrame();
       gb->addBoardId(id);
       Board* bb = fc->getBoards(gb).begin()->second;
@@ -186,7 +199,7 @@ int main(int argc, char** argv){
 	  currObj->visit(objectprinter);
 	}else if(command == "order"){
 	  int id;
-	  std::cin >> id;
+	  streamline >> id;
 	  GetOrder* go = fc->createGetOrderFrame();
 	  go->setObjectId(currObj->getId());
 	  go->addOrderId(id);
@@ -209,7 +222,7 @@ int main(int argc, char** argv){
 	  }
 	}else if(command == "del_order"){
 	  int id;
-	  std::cin >> id;
+	  streamline >> id;
 	  RemoveOrder* rg = fc->createRemoveOrderFrame();
 	  rg->setObjectId(currObj->getId());
 	  rg->removeOrderId(id);
@@ -229,7 +242,7 @@ int main(int argc, char** argv){
 	  std::cout << "Number of messages: " << currBoard->numMessages() << std::endl << std::endl;
 	}else if(command == "message"){
 	  int id;
-	  std::cin >> id;
+	  streamline >> id;
 	  GetMessage* gm = fc->createGetMessageFrame();
 	  gm->setBoard(currBoard->getId());
 	  gm->addMessageId(id);
@@ -245,7 +258,7 @@ int main(int argc, char** argv){
 	  }
 	}else if(command == "del_message"){
 	  int id;
-	  std::cin >> id;
+	  streamline >> id;
 	  RemoveMessage* rm = fc->createRemoveMessageFrame();
 	  rm->setBoard(currBoard->getId());
 	  rm->removeMessageId(id);
@@ -262,6 +275,8 @@ int main(int argc, char** argv){
     if(fc->getStatus() > 2){
       fc->pollForAsyncFrames();
     }
+
+    free(line); 
 
   }
 
