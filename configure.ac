@@ -1,9 +1,9 @@
-AC_INIT([tpclient-cpptext],[0.0.1],[lee@thousandparsec.net])
+AC_INIT([tpclient-cpptext],[0.0.2],[lee@thousandparsec.net])
 AC_CONFIG_SRCDIR(src/main.cpp)
 
 AC_CANONICAL_TARGET([])
 
-AM_INIT_AUTOMAKE(tpclient-cpptext, 0.0.1)
+AM_INIT_AUTOMAKE(tpclient-cpptext, 0.0.2)
 AM_CONFIG_HEADER(config.h)
 
 AM_MAINTAINER_MODE
@@ -57,7 +57,7 @@ AC_TRY_COMPILE(
 AC_SUBST(READLINE_LIBS)
 
 
-PKG_CHECK_MODULES(TP, libtpproto,
+PKG_CHECK_MODULES(TP, libtpproto >= 0.1.0,
 	[
         CXXFLAGS="$CXXFLAGS $TP_CFLAGS"
         LDFLAGS="$LDFLAGS $TP_LIBS"

@@ -25,19 +25,12 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include <tpproto/framecodec.h>
-#include <tpproto/tcpsocket.h>
+#include <tpproto/gamelayer.h>
 #include <tpproto/object.h>
 #include <tpproto/board.h>
-#include <tpproto/getobjectbyid.h>
-#include <tpproto/getboard.h>
-#include <tpproto/getmessage.h>
 #include <tpproto/message.h>
-#include <tpproto/getorder.h>
 #include <tpproto/order.h>
 #include <tpproto/orderparameter.h>
-#include <tpproto/removeorder.h>
-#include <tpproto/removemessage.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -195,15 +188,13 @@ int main(int argc, char** argv){
 
   std::cout << "tpclient-cpptext " << VERSION << std::endl;
 
-  FrameCodec* fc = new FrameCodec();
-  fc->setClientString(std::string("tpclient-cpptext/") + VERSION);
-  TcpSocket* sock = new TcpSocket();
-  fc->setSocket(sock);
+    GameLayer* game = new GameLayer();
+    game->setClientString(std::string("tpclient-cpptext/") + VERSION);
 
   //async frame listener
-  fc->setAsyncFrameListener(new PrintAFListener());
+//   fc->setAsyncFrameListener(new PrintAFListener());
   //logger
-  fc->setLogger(new PrintLogger());
+  game->setLogger(new PrintLogger());
 
   PrintObject* objectprinter = new PrintObject();
   PrintOrderParam* orderParamPrinter = new PrintOrderParam();
@@ -268,20 +259,22 @@ int main(int argc, char** argv){
     }else if(command == "connect"){
       std::string host;
       streamline >> std::ws >> host;
-      sock->setServerAddr(host.c_str());
-      fc->connect();
-      if(currObj != NULL){
-	delete currObj;
-	currObj = NULL;
-      }
-      if(currBoard != NULL){
-	delete currBoard;
-	currBoard = NULL;
-      }
+        if(game->getStatus() == gsDisconnected && game->connect(host)){
+            if(currObj != NULL){
+                delete currObj;
+                currObj = NULL;
+            }
+            if(currBoard != NULL){
+                delete currBoard;
+                currBoard = NULL;
+            }
+        }else{
+            std::cout << "Could not connect" << std::endl;
+        }
     }else if(command == "disconnect"){
-      if(fc->getStatus() != 0){
-	fc->disconnect();
-      }
+        if(game->getStatus() != gsDisconnected){
+            game->disconnect();
+        }
       if(currObj != NULL){
 	delete currObj;
 	currObj = NULL;
@@ -294,10 +287,10 @@ int main(int argc, char** argv){
       std::string user, pass;
       streamline >> std::ws >> user >> pass;
       std::cout << "User: " << user << " pass: " << pass << " foo" << std::endl;
-      fc->login(user, pass);
+        game->login(user, pass);
     }else if(command == "time"){
       std::cout << "Time Remaining: ";
-      int tvrem = fc->getTimeRemaining();
+        int tvrem = game->getTimeRemaining();
       bool seen = false;
       if(tvrem > 86400){
 	std::cout << (tvrem / 86400) << " days, ";
@@ -322,10 +315,7 @@ int main(int argc, char** argv){
     }else if(command == "object"){
       int id;
       streamline >> id;
-      GetObjectByID* go = fc->createGetObjectByIDFrame();
-      go->addObjectID(id);
-      Object* ob = fc->getObjects(go).begin()->second;
-      delete go;
+      Object* ob = game->getObject(id);
       if(ob == NULL){
 	std::cout << "Did not get object" << std::endl;
       }else{
@@ -340,10 +330,7 @@ int main(int argc, char** argv){
     }else if(command == "board"){
       int id;
       streamline >> id;
-      GetBoard* gb = fc->createGetBoardFrame();
-      gb->addBoardId(id);
-      Board* bb = fc->getBoards(gb).begin()->second;
-      delete gb;
+      Board* bb = game->getBoard(id);
       if(bb == NULL){
 	std::cout << "Did not get Board" << std::endl;
       }else{
@@ -361,13 +348,7 @@ int main(int argc, char** argv){
 	}else if(command == "order"){
 	  int id;
 	  streamline >> id;
-	  GetOrder* go = fc->createGetOrderFrame();
-	  go->setObjectId(currObj->getId());
-	  go->addOrderId(id);
-	  std::map<unsigned int, Order*> ords = fc->getOrders(go);
-	  delete go;
-	  for(std::map<unsigned int, Order*>::iterator itcurr = ords.begin(); itcurr != ords.end(); ++itcurr){
-	    Order* order = itcurr->second;
+	  Order* order = game->getOrder(currObj->getId(), id);
 	    if(order != NULL){
 	      std::cout << std::endl;
 	      std::cout << "Order Type: " << order->getOrderType() << std::endl;
@@ -380,17 +361,13 @@ int main(int argc, char** argv){
 	      delete order;
 	      std::cout << std::endl;
 	    }
-	  }
+	  
 	}else if(command == "del_order"){
 	  int id;
 	  streamline >> id;
-	  RemoveOrder* rg = fc->createRemoveOrderFrame();
-	  rg->setObjectId(currObj->getId());
-	  rg->removeOrderId(id);
-	  if(fc->removeOrders(rg) != 1){
+	  if(game->removeOrder(currObj->getId(), id)){
 	    std::cout << "Did not remove order" << std::endl;
 	  }
-	  delete rg;
 	}
       }
     }else{
@@ -404,37 +381,27 @@ int main(int argc, char** argv){
 	}else if(command == "message"){
 	  int id;
 	  streamline >> id;
-	  GetMessage* gm = fc->createGetMessageFrame();
-	  gm->setBoard(currBoard->getId());
-	  gm->addMessageId(id);
-	  std::map<unsigned int, Message*> messgs = fc->getMessages(gm);
-	  delete gm;
-	  for(std::map<unsigned int, Message*>::iterator itcurr = messgs.begin(); itcurr != messgs.end(); ++itcurr){
-	    Message* msg = itcurr->second;
+	  Message* msg = game->getMessage(currBoard->getId(), id);
 	    if(msg != NULL){
 	      std::cout << std::endl << "Message Subject: " << msg->getSubject() << std::endl;
 	      std::cout << "Body: " << msg->getBody() << std::endl << std::endl;
 	      delete msg;
 	    }
-	  }
+	  
 	}else if(command == "del_message"){
 	  int id;
 	  streamline >> id;
-	  RemoveMessage* rm = fc->createRemoveMessageFrame();
-	  rm->setBoard(currBoard->getId());
-	  rm->removeMessageId(id);
-	  if(fc->removeMessages(rm) != 1){
+	  if(game->removeMessage(currBoard->getId(), id)){
 	    std::cout << "Did not remove message" << std::endl;
 	  }
-	  delete rm;
 	}
       }
     }
 
     
     
-    if(fc->getStatus() > 2){
-      fc->pollForAsyncFrames();
+    if(game->getStatus() >= gsLoggedIn){
+      //fc->pollForAsyncFrames();
     }
 
     free(line); 
@@ -448,8 +415,8 @@ int main(int argc, char** argv){
     delete currBoard;
   }
   
-  fc->disconnect();
-  delete fc; // also takes care of sock for us
+  game->disconnect();
+  delete game;
 
   //delete the local printers and helper objects
   delete objectprinter;
