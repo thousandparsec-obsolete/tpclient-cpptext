@@ -1,0 +1,12 @@
+Tpclient-cpptext
+Text client for Thousand Parsec, written in C++.
+----------------------------------
+
+This is a very simple client, written in C++ to use and test
+the libtpproto-cpp library.
+
+
+Depends:
+---------------
+libtpproto-cpp - at least 0.1.0
+
