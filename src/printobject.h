@@ -1,19 +1,15 @@
 #ifndef PRINTOBJECT_H
 #define PRINTOBJECT_H
 
-#include <tpproto/objectvisitor.h>
+namespace TPProto{
+  class Object;
+}
 
-
-class PrintObject : public TPProto::ObjectVisitor{
+class PrintObject{
  public:
   PrintObject();
-  virtual ~PrintObject();
+  ~PrintObject();
 
-  void visit(TPProto::Universe* ob);
-  void visit(TPProto::Galaxy* ob);
-  void visit(TPProto::StarSystem* ob);
-  void visit(TPProto::Planet* ob);
-  void visit(TPProto::Fleet* ob);
   void visit(TPProto::Object* ob);
 
  

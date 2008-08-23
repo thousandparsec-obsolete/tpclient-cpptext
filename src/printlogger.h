@@ -8,10 +8,10 @@ class PrintLogger : public TPProto::Logger{
   PrintLogger();
   virtual ~PrintLogger();
 
-  void error(char* mesg, ...);
-  void warning(char* mesg, ...);
-  void info(char* mesg, ...);
-  void debug(char* mesg, ...);
+  void error(const char* mesg, ...);
+  void warning(const char* mesg, ...);
+  void info(const char* mesg, ...);
+  void debug(const char* mesg, ...);
 
 };
 

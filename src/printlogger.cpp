@@ -10,7 +10,7 @@ PrintLogger::PrintLogger(){
 PrintLogger::~PrintLogger(){
 }
 
-void PrintLogger::error(char* mesg, ...){
+void PrintLogger::error(const char* mesg, ...){
   char* fmsg = new char[100];
   va_list ap;
   va_start(ap, mesg);
@@ -25,7 +25,7 @@ void PrintLogger::error(char* mesg, ...){
   delete[] fmsg;
 }
 
-void PrintLogger::warning(char* mesg, ...){
+void PrintLogger::warning(const char* mesg, ...){
   char* fmsg = new char[100];
   va_list ap;
   va_start(ap, mesg);
@@ -40,7 +40,7 @@ void PrintLogger::warning(char* mesg, ...){
   delete[] fmsg;
 }
 
-void PrintLogger::info(char* mesg, ...){
+void PrintLogger::info(const char* mesg, ...){
   char* fmsg = new char[100];
   va_list ap;
   va_start(ap, mesg);
@@ -55,7 +55,7 @@ void PrintLogger::info(char* mesg, ...){
   delete[] fmsg;
 }
 
-void PrintLogger::debug(char* mesg, ...){
+void PrintLogger::debug(const char* mesg, ...){
   char* fmsg = new char[100];
   va_list ap;
   va_start(ap, mesg);
