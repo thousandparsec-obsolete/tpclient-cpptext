@@ -1,6 +1,6 @@
 /*  Main method for tpclient-cpptext
  *
- *  Copyright (C) 2004-2005  Lee Begg and the Thousand Parsec Project
+ *  Copyright (C) 2004-2005, 2008  Lee Begg and the Thousand Parsec Project
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,15 +22,23 @@
 #include <string>
 #include <sstream>
 
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <boost/bind.hpp>
+#include <boost/shared_ptr.hpp>
+
+#include <tprl/rlcommand.h>
+#include <tprl/commandalias.h>
 
 #include <tpproto/gamelayer.h>
+#include <tpproto/simpleeventloop.h>
+#include <tpproto/gamestatuslistener.h>
+
 #include <tpproto/object.h>
 #include <tpproto/board.h>
 #include <tpproto/message.h>
 #include <tpproto/order.h>
 #include <tpproto/orderparameter.h>
+#include <tpproto/objectcache.h>
+#include <tpproto/boardcache.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -42,209 +50,127 @@
 #include "printaflistener.h"
 #include "printobject.h"
 #include "printorderparam.h"
+#include "console.h"
 
 using namespace TPProto;
 
-static bool brdobj = true;
+GameLayer *game;
+SimpleEventLoop* eventloop;
+Console* console;
 
-char* command_generator(const char* text, int state)
-{
-  static int index, len;
-  char *cname = NULL;
-
-  /* If this is a new word to complete, initialize now.  This
-     includes saving the length of TEXT for efficiency, and
-     initializing the index variable to 0. */
-  if (!state)
-    {
-      index = 0;
-      len = strlen (text);
-    }
-
-  switch(index){
-  case 0:
-    if(strncasecmp(text, "quit", len) == 0){
-      cname = (char*)malloc(5);
-      strncpy(cname, "quit", 5);
-      index = 1;
-      break;
-    }
-  case 1:
-    if(strncasecmp(text, "exit", len) == 0){
-      cname = (char*)malloc(5);
-      strncpy(cname, "exit", 5);
-      index = 2;
-      break;
-    }
-  case 2:
-    if(strncasecmp(text, "help", len) == 0){
-      cname = (char*)malloc(5);
-      strncpy(cname, "help", 5);
-      index = 3;
-      break;
-    }
-  case 3:
-    if(strncasecmp(text, "connect", len) == 0){
-      cname = (char*)malloc(8);
-      strncpy(cname, "connect", 8);
-      index = 4;
-      break;
-    }
-  case 4:
-    if(strncasecmp(text, "disconnect", len) == 0){
-      cname = (char*)malloc(11);
-      strncpy(cname, "disconnect", 11);
-      index = 5;
-      break;
-    }
-  case 5:
-    if(strncasecmp(text, "login", len) == 0){
-      cname = (char*)malloc(6);
-      strncpy(cname, "login", 6);
-      index = 6;
-      break;
-    }
-  case 6:
-    if(strncasecmp(text, "time", len) == 0){
-      cname = (char*)malloc(5);
-      strncpy(cname, "time", 5);
-      index = 7;
-      break;
-    }
-  case 7:
-    if(strncasecmp(text, "object", len) == 0){
-      cname = (char*)malloc(7);
-      strncpy(cname, "object", 7);
-      index = 8;
-      break;
-    }
-  case 8:
-    if(strncasecmp(text, "board", len) == 0){
-      cname = (char*)malloc(6);
-      strncpy(cname, "board", 6);
-      index = 9;
-      break;
-    }
-  case 9:
-    if(strncasecmp(text, "show", len) == 0){
-      cname = (char*)malloc(5);
-      strncpy(cname, "show", 5);
-      index = 10;
-      break;
-    }
-  case 10:
-    if(brdobj && strncasecmp(text, "order", len) == 0){
-      cname = (char*)malloc(6);
-      strncpy(cname, "order", 6);
-      index = 11;
-      break;
-    }
-  case 11:
-    if(brdobj && strncasecmp(text, "del_order", len) == 0){
-      cname = (char*)malloc(10);
-      strncpy(cname, "del_order", 10);
-      index = 12;
-      break;
-    }
-  case 12:
-    if(!brdobj && strncasecmp(text, "message", len) == 0){
-      cname = (char*)malloc(8);
-      strncpy(cname, "message", 8);
-      index = 13;
-      break;
-    }
-  case 13:
-    if(!brdobj && strncasecmp(text, "del_message", len) == 0){
-      cname = (char*)malloc(12);
-      strncpy(cname, "del_message", 12);
-      index = 14;
-      break;
-    }
-
-
-  default:
-    index = 99;
-    break;
-  }
-
-  return cname;
+void showObject(boost::shared_ptr<Object> ob){
+  PrintObject po;
+  po.visit(ob.get());
 }
 
-char** command_completion (const char* text, int start, int end)
-{
-  char **matches;
-
-  matches = (char **)NULL;
-
-  if (start == 0)
-    matches = rl_completion_matches (text, command_generator);
-  
-  rl_attempted_completion_over = 1;
-
-  return (matches);
+void showBoard(boost::shared_ptr<Board> currBoard){
+  std::cout << std::endl;
+  std::cout << "Name: " << currBoard->getName() << std::endl;
+  std::cout << "Id: " << currBoard->getId() << std::endl;
+  std::cout << "Description: " << currBoard->getDescription() << std::endl;
+  std::cout << "Number of messages: " << currBoard->numMessages() << std::endl << std::endl;
 }
 
-int main(int argc, char** argv){
+class QuitCommand : public tprl::RLCommand{
+  public:
+    QuitCommand() : tprl::RLCommand(){
+      name = "quit";
+      help = "Exits tpclient-cpptext";
+    }
 
-  std::cout << "tpclient-cpptext " << VERSION << std::endl;
+    void action(const std::string & cmdline){
+        eventloop->endEventLoop();
+    }
+};
 
-    GameLayer* game = new GameLayer();
-    game->setClientString(std::string("tpclient-cpptext/") + VERSION);
+class ConnectCommand : public tprl::RLCommand{
+  public:
+    ConnectCommand() : tprl::RLCommand(){
+      name = "connect";
+      help = "Connects to a server";
+    }
+    void action(const std::string & cmdline){
+      if(game->getStatus() == gsDisconnected && game->connect(cmdline)){
+         std::cout << "Connection started" << std::endl;
+      }
+    }
+};
 
-  //async frame listener
-//   fc->setAsyncFrameListener(new PrintAFListener());
-  //logger
-  game->setLogger(new PrintLogger());
+class LoginCommand : public tprl::RLCommand{
+  public:
+    LoginCommand() : tprl::RLCommand(){
+        name = "login";
+        help = "Log in to a player on the server.";
+    }
 
-  PrintObject* objectprinter = new PrintObject();
-  PrintOrderParam* orderParamPrinter = new PrintOrderParam();
+    void action(const std::string & cmdline){
+        if(game->getStatus() == TPProto::gsConnected){
+            size_t p = cmdline.find(' ');
+            if(game->login(cmdline.substr(0, p), cmdline.substr(p + 1))){
+                std::cout << "Login ok, status: " << game->getStatus() << std::endl;
+            }
+        }else{
+            std::cout << "Not connected or already logged in." << std::endl;
+        }
+    }
+};
 
-  Object* currObj = NULL;
-  Board* currBoard = NULL;
+class DisconnectCommand : public tprl::RLCommand{
+  public:
+    DisconnectCommand() : tprl::RLCommand(){
+        name = "disconnect";
+        help = "Close the connection.";
+    }
 
+    void action(const std::string & cmdline){
+        if(game->getStatus() != TPProto::gsDisconnected){
+            game->disconnect();
+        }
+    }
+};
 
-  //setup readline completion
-  rl_attempted_completion_function = command_completion;
+class TimeCommand : public tprl::RLCommand{
+  public:
+    TimeCommand() : tprl::RLCommand(){
+      name = "time";
+      help = "Get the time to the next End of Turn.";
+    }
+    void action(const std::string & cmdline){
+      game->getTimeRemaining();
+    }
+};
 
+class ObjectCommand : public tprl::RLCommand{
+  public:
+    ObjectCommand() : tprl::RLCommand(){
+      name = "object";
+      help = "Get and display an Object.";
+    }
+
+    void action(const std::string& cmdline){
+      game->getObjectCache()->requestObject(atoi(cmdline.c_str()), &showObject);
+    }
+};
+
+class BoardCommand : public tprl::RLCommand{
+  public:
+    BoardCommand() : tprl::RLCommand(){
+      name = "board";
+      help = "Get and display a board.";
+    }
+
+    void action(const std::string& cmdline){
+      game->getBoardCache()->requestBoard(atoi(cmdline.c_str()), &showBoard);
+    }
+};
+
+#if 0
   // main loop
-  while(true){
-    std::ostringstream prompt;
-    if(brdobj){
-      if(currObj != NULL){
-	prompt << "Object: " << currObj->getName();
-      }
-    }else{
-      if(currBoard != NULL){
-	prompt << "Board: " << currBoard->getName();
-      }
-    }
-
-    prompt << "> ";
-
-    char* line = readline(prompt.str().c_str());
-    if(line == NULL)
-      break;
-
-    add_history(line);
-
-    std::istringstream streamline;
-    streamline.str(std::string(line));
-
-    std::string command;
-    streamline >> std::ws >> command;
+ 
 
     if(command == "help"){
-      std::cout << "Help" << std::endl;
-      std::cout << "  Known commands are:" << std::endl;
-      std::cout << "\thelp - this help" << std::endl;
-      std::cout << "\tquit, exit - exits tpclient-cpptext" << std::endl;
-      std::cout << "\tconnect - connect to server (takes one arg)" << std::endl;
-      std::cout << "\tdisconnect - disconnect from server" << std::endl;
-      std::cout << "\tlogin - login to server (takes two args)" << std::endl;
-      std::cout << "\ttime - get the time before the next End Of Turn" << std::endl;
-      std::cout << "\tobject - get an object, take an id arg" << std::endl;
-      std::cout << "\tboard - get a board, take an id arg" << std::endl;
-      std::cout << std::endl << "When working on an Object (prompt starts with \"Object\"):"<< std::endl;
+
+       std::cout << std::endl << "When working on an Object (prompt starts with \"Object\"):"<< std::endl;
       std::cout << "\tshow - show the object" << std::endl;
       std::cout << "\torder - gets and print an order (takes one arg)" << std::endl;
       std::cout << "\tdel_order - removes an order from the object (takes one arg)" << std::endl;
@@ -254,40 +180,6 @@ int main(int argc, char** argv){
       std::cout << "\tmessage - gets and prints the message (takes one arg)" << std::endl;
       std::cout << "\tdel_message - removes a message from the board (takes one arg)" << std::endl;
 
-    }else if(command == "quit" || command == "exit"){
-      break;
-    }else if(command == "connect"){
-      std::string host;
-      streamline >> std::ws >> host;
-        if(game->getStatus() == gsDisconnected && game->connect(host)){
-            if(currObj != NULL){
-                delete currObj;
-                currObj = NULL;
-            }
-            if(currBoard != NULL){
-                delete currBoard;
-                currBoard = NULL;
-            }
-        }else{
-            std::cout << "Could not connect" << std::endl;
-        }
-    }else if(command == "disconnect"){
-        if(game->getStatus() != gsDisconnected){
-            game->disconnect();
-        }
-      if(currObj != NULL){
-	delete currObj;
-	currObj = NULL;
-      }
-      if(currBoard != NULL){
-	delete currBoard;
-	currBoard = NULL;
-      }
-    }else if(command == "login"){
-      std::string user, pass;
-      streamline >> std::ws >> user >> pass;
-      std::cout << "User: " << user << " pass: " << pass << " foo" << std::endl;
-        game->login(user, pass);
     }else if(command == "time"){
       std::cout << "Time Remaining: ";
         int tvrem = game->getTimeRemaining();
@@ -397,33 +289,51 @@ int main(int argc, char** argv){
 	}
       }
     }
+}
 
-    
-    
-    if(game->getStatus() >= gsLoggedIn){
-      //fc->pollForAsyncFrames();
-    }
+#endif
 
-    free(line); 
+int main(int argc, char** argv){
 
-  }
+  std::cout << "tpclient-cpptext " << VERSION << std::endl;
 
-  if(currObj != NULL){
-    delete currObj;
-  }
-  if(currBoard != NULL){
-    delete currBoard;
-  }
+    game = new GameLayer();
+    game->setClientString(std::string("tpclient-cpptext/") + VERSION);
+
+  //async rame listener
+  //  fc->setAsyncFrameListener(new PrintAFListener());
+  //logger
+  game->setLogger(new PrintLogger());
+
+  eventloop = new SimpleEventLoop();
+
+  std::set<tprl::RLCommand*> commands;
+  commands.insert(new ConnectCommand());
+  commands.insert(new DisconnectCommand());
+  commands.insert(new LoginCommand());
+  commands.insert(new TimeCommand());
+  commands.insert(new ObjectCommand());
+  commands.insert(new BoardCommand());
+
+  tprl::RLCommand* quit = new QuitCommand();
+  tprl::CommandAlias *exit = new tprl::CommandAlias("exit");
+  exit->setTarget(quit);
+  commands.insert(quit);
+  commands.insert(exit);
+
+  console = new Console();
+  console->setCommandSet(&commands);
+  console->connect();
+  console->start();
+  
+  eventloop->listenForSocketRead(console);
+  eventloop->runEventLoop();
   
   game->disconnect();
   delete game;
 
-  //delete the local printers and helper objects
-  delete objectprinter;
-  delete orderParamPrinter;
-
-  std::cout << std::endl;
+  console->stop();
+  delete console;
 
   return 0;
-
-};
+}
