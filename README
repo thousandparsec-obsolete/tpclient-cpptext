@@ -9,4 +9,5 @@ the libtpproto-cpp library.
 Depends:
 ---------------
 libtpproto-cpp - at least 0.1.0
+libtprl
 
