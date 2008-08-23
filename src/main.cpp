@@ -306,6 +306,7 @@ int main(int argc, char** argv){
   game->setLogger(new PrintLogger());
 
   eventloop = new SimpleEventLoop();
+  game->setEventLoop(eventloop);
 
   std::set<tprl::RLCommand*> commands;
   commands.insert(new ConnectCommand());
