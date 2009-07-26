@@ -1,6 +1,6 @@
 /*  Main method for tpclient-cpptext
  *
- *  Copyright (C) 2004-2005, 2008  Lee Begg and the Thousand Parsec Project
+ *  Copyright (C) 2004-2005, 2008, 2009  Lee Begg and the Thousand Parsec Project
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -106,7 +106,8 @@ class LoginCommand : public tprl::RLCommand{
     void action(const std::string & cmdline){
         if(game->getStatus() == TPProto::gsConnected){
             size_t p = cmdline.find(' ');
-            if(game->login(cmdline.substr(0, p), cmdline.substr(p + 1))){
+            size_t p1 = cmdline.find(' ', p + 1);
+            if(game->login(cmdline.substr(0, p), cmdline.substr(p + 1, p1), cmdline.substr(p1 + 1))){
                 std::cout << "Login ok, status: " << game->getStatus() << std::endl;
             }
         }else{
